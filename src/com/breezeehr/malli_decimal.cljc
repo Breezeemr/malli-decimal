@@ -5,26 +5,24 @@
             [malli.registry :as mr]
             [malli.transform :as mt]
             [malli.util :as mu]
-            #?@(:cljs [[goog.object]])))
+            #?@(:cljs [["bigdecimal.js" :refer [Big BigDecimal]]])))
 
 (defn ->bigdec [x]
   (try
     #?(:clj   (bigdec x)
-       :cljs (js/Big. x))
+       :cljs (Big x))
     (catch #?(:clj Exception :cljs js/Error) _e x)))
 
 (defn -decimal? [x]
   #?(:clj  (decimal? x)
-     :cljs (instance? js/Big x)))
+     :cljs (instance? BigDecimal x)))
 (defn -lte? [x y]
   #?(:clj  (<= x y)
-     :cljs (.lte x y)))
+     :cljs (not (pos? (.compareTo ^js x y)))))
 
 (defn scale [x]
   #?(:clj  (-> x .scale)
-     :cljs (-> x
-               (goog.object/get "c") count
-               (- (-> x (goog.object/get "e") inc)))))
+     :cljs (.scale ^js x)))
 
 (defn last-digit [x]
   (aget x (dec (count x))))
@@ -33,10 +31,9 @@
   #?(:clj  (and
             (-> x .scale pos?)
             (-> x .unscaledValue (.mod (biginteger 10)) (= 0)))
-     :cljs false
-     #_(and
-        (-> x scale pos?)
-        (-> x digits last-digit (= 0)))))
+     :cljs (and
+            (-> ^js x .scale pos?)
+            (= (js-mod (.unscaledValue ^js x) (js/BigInt 10)) (js/BigInt 0)))))
 
 (def decimal-schemas
   {:decimal (m/-simple-schema {:type    :decimal,
